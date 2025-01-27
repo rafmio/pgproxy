@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN go mod init postgres-insert && \
+RUN go mod init pgproxy && \
     go get github.com/lib/pq && \
     go get . && \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o app

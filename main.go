@@ -1,8 +1,8 @@
 package main
 
 import (
-	"dbproxy/server"
 	"log"
+	"pgproxy/server"
 )
 
 func main() {
