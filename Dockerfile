@@ -12,6 +12,6 @@ RUN go mod init postgres-insert && \
 FROM alpine:latest
 
 COPY --from=builder /app/app /usr/local/bin/app
-COPY migrations /app/migrations
+# COPY migrations /app/migrations
 
 CMD ["/usr/local/bin/app"]
