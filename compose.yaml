@@ -1,0 +1,17 @@
+version: '3'
+services:
+  app:
+    build: .
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./input-data:/app/input-data
+    environment:
+      - DB_HOST=172.17.0.1 # type 'ip a | grep docker', get this IP 
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=gfgtutor
+      - DB_SSL_MODE=disable
+      - DB_CREATE_TABLE_SCRIPT=/app/migrations/001-create_table.sql
+      - DATA_FILE=/app/input-data/team-02.json
