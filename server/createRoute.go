@@ -1,11 +1,11 @@
 package server
 
 import (
-	"dbproxy/dbops"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"pgproxy/dbops"
 )
 
 func createRecord(w http.ResponseWriter, r *http.Request) {
