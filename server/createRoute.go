@@ -56,6 +56,6 @@ func createRecord(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprintf(w, "Record created successfully")
 		log.Println("Record created successfully")
-		w.WriteHeader(http.StatusOK)
+		// w.WriteHeader(http.StatusOK) // deleting this fix the error "superfluous response.WriteHeader call"
 	}
 }
