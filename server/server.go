@@ -9,10 +9,10 @@ import (
 )
 
 // Columns []string `json:"columns"`
-type RequestBody struct {
-	Query  string   `json:"query"`
-	Params []string `json:"params"`
-}
+// type RequestBody struct {
+// 	Query  string   `json:"query"`
+// 	Params []string `json:"params"`
+// }
 
 type handlerFunc func(w http.ResponseWriter, r *http.Request)
 
@@ -45,8 +45,8 @@ func newServeMux() *http.ServeMux {
 	endpoints := map[string]handlerFunc{
 		"/create": createRecord,
 		"/read":   readRecord,
-		"/delete": deleteRecord,
 		"/update": updateRecord,
+		"/delete": deleteRecord,
 		"/exists": existsRecord,
 	}
 
