@@ -19,10 +19,10 @@ func checkHttpMethod(w http.ResponseWriter, r *http.Request) error {
 		if path == r.URL.Path && method != r.Method {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			fmt.Fprintf(w, "Method %s not allowed for path %s, should be %s", r.Method, path, method)
-			fmt.Fprintf(w, "Method %s not allowed for path %s, should be %s", r.Method, path, method)
 			log.Printf("Method %s not allowed for path %s, should be %s", r.Method, path, method)
-			return
+			return fmt.Errorf("method not allowed")
 		}
 	}
 
+	return nil
 }

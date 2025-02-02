@@ -6,13 +6,17 @@ import (
 	"log"
 	"net/http"
 	"pgproxy/dbops"
+	"pgproxy/models"
 )
 
 func createRecord(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		fmt.Fprintf(w, "Method not allowed")
-		log.Println("Method not allowed")
+	err := checkHttpMethod(w, r)
+	if err != nil {
+		return
+	}
+
+	requestBody, err := models.NewRequestBody(w, r)
+	if err != nil {
 		return
 	}
 
