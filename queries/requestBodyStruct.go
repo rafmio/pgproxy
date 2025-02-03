@@ -1,4 +1,4 @@
-package models
+package queries
 
 import (
 	"encoding/json"
@@ -14,8 +14,8 @@ type RequestBody struct {
 	NewParams []string `json:"new_params"`
 }
 
-func NewRequestBody(w http.ResponseWriter, r *http.Request) (*RequestBody, error) {
-	requestBody := new(RequestBody)
+func NewRequestBody(w http.ResponseWriter, r *http.Request) ([]*RequestBody, error) {
+	var requestBody []*RequestBody
 
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
