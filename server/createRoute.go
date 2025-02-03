@@ -19,13 +19,6 @@ func createRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if requestBody.Query == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Query cannot be empty")
-		log.Println("Query cannot be empty")
-		return
-	}
-
 	db, err := dbops.ConnectToDb()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
