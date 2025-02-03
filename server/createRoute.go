@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 	"pgproxy/dbops"
-	"pgproxy/models"
+	"pgproxy/queries"
 )
 
 func createRecord(w http.ResponseWriter, r *http.Request) {
@@ -14,7 +14,7 @@ func createRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestBody, err := models.NewRequestBody(w, r)
+	requestBody, err := queries.NewRequestBody(w, r)
 	if err != nil {
 		return
 	}
