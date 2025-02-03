@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,15 +16,6 @@ func createRecord(w http.ResponseWriter, r *http.Request) {
 
 	requestBody, err := models.NewRequestBody(w, r)
 	if err != nil {
-		return
-	}
-
-	var requestBody RequestBody
-
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Invalid request body")
-		log.Println("Invalid request body")
 		return
 	}
 
