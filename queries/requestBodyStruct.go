@@ -49,3 +49,16 @@ func (req *RequestBody) validateRequestBody(r *http.Request) error {
 
 	return nil
 }
+
+// function buildExistsQuery generates an SQL query string that is designed to query the
+// PostgreSQL database to see if an entry exists in the database.
+func (req *RequestBody) buildExistsQuery() (string, error) {
+	if len(req.Params) == 0 {
+		return "", fmt.Errorf("params are required to build exists query")
+	}
+
+	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM %s WHERE %s = $%d)",
+		req.TableName, req.Columns[0], len(req.Params)+1)
+
+	return query, nil
+}
