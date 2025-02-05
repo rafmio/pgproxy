@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type RequestBody struct {
@@ -53,12 +54,22 @@ func (req *RequestBody) validateRequestBody(r *http.Request) error {
 // function buildExistsQuery generates an SQL query string that is designed to query the
 // PostgreSQL database to see if an entry exists in the database.
 func (req *RequestBody) buildExistsQuery() (string, error) {
-	if len(req.Params) == 0 {
-		return "", fmt.Errorf("params are required to build exists query")
+	if len(req.Params) != len(req.Columns) {
+		return "", fmt.Errorf("params and columns must have the same length")
 	}
 
-	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM %s WHERE %s = $%d)",
-		req.TableName, req.Columns[0], len(req.Params)+1)
+	var conditions []string
+
+	// conditions for WHERE
+	for i, column := range req.Columns {
+		conditions = append(conditions, fmt.Sprintf("%s = $%d", column, i+1))
+	}
+
+	query := fmt.Sprintf(
+		"SELECT EXISTS (SELECT 1 FROM %s WHERE %s)",
+		req.TableName,
+		strings.Join(conditions, " AND "),
+	)
 
 	return query, nil
 }
