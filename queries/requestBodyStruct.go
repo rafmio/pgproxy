@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// RequestBody represents the structure of the request body.
 type RequestBody struct {
 	TableName string   `json:"table_name"`
 	Columns   []string `json:"columns"`
@@ -15,6 +16,7 @@ type RequestBody struct {
 	NewParams []string `json:"new_params"`
 }
 
+// NewRequestBody parses the request body and validates it.
 func NewRequestBody(w http.ResponseWriter, r *http.Request) ([]*RequestBody, error) {
 	var requestBodies []*RequestBody
 
@@ -38,6 +40,7 @@ func NewRequestBody(w http.ResponseWriter, r *http.Request) ([]*RequestBody, err
 	return requestBodies, nil
 }
 
+// validateRequestBody validates the request body based on the provided rules.
 func (req *RequestBody) validateRequestBody(r *http.Request) error {
 	if req.TableName == "" {
 		return fmt.Errorf("table_name is required")

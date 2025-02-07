@@ -8,6 +8,8 @@ import (
 	"pgproxy/queries"
 )
 
+type RequestBodyErrorsMap map[queries.RequestBody]error
+
 func createRecord(w http.ResponseWriter, r *http.Request) {
 	err := checkHttpMethod(w, r)
 	if err != nil {
