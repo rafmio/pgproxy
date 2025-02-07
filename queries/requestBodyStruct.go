@@ -8,17 +8,19 @@ import (
 	"strings"
 )
 
-// RequestBody represents the structure of the request body.
-type RequestBody struct {
-	TableName string   `json:"table_name"`
-	Columns   []string `json:"columns"`
-	Params    []string `json:"params"`
-	NewParams []string `json:"new_params"`
+// requestBody represents the structure of the request body.
+type requestBody struct {
+	tableName string   `json:"table_name"`
+	columns   []string `json:"columns"`
+	params    []string `json:"params"`
+	newParams []string `json:"new_params"`
 }
 
+type RequestBodyErrorsMap map[*requestBody]error
+
 // NewRequestBody parses the request body and validates it.
-func NewRequestBody(w http.ResponseWriter, r *http.Request) ([]*RequestBody, error) {
-	var requestBodies []*RequestBody
+func NewRequestBody(w http.ResponseWriter, r *http.Request) (RequestBodyErrorsMap, error) {
+	var requestBodies []*requestBody
 
 	if err := json.NewDecoder(r.Body).Decode(&requestBodies); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -27,30 +29,35 @@ func NewRequestBody(w http.ResponseWriter, r *http.Request) ([]*RequestBody, err
 		return nil, err
 	}
 
+	rbem := make(RequestBodyErrorsMap) // 'rbem' stands for RequestBodyErrorMap
+	badIndexSlice := make([]int, 0)
+
 	// validate request body
-	for _, rb := range requestBodies {
+	for i, rb := range requestBodies { // 'rb' stands for RequestBody
 		if err := rb.validateRequestBody(r); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "Invalid request body: %s", err)
-			log.Printf("Invalid request body: %s", err)
-			// return nil, err
+			log.Printf("Invalid request body with idx %d: %s", i, err)
+			badIndexSlice = append(badIndexSlice, i)
+			rbem[rb] = err
+		} else {
+			rbem[rb] = nil
 		}
 	}
 
-	return requestBodies, nil
+	return rbem, nil
 }
 
 // validateRequestBody validates the request body based on the provided rules.
-func (req *RequestBody) validateRequestBody(r *http.Request) error {
-	if req.TableName == "" {
+func (req *requestBody) validateRequestBody(r *http.Request) error {
+	if req.tableName == "" {
 		return fmt.Errorf("table_name is required")
 	}
 
-	if len(req.Params) != 0 && len(req.Columns) == 0 {
+	if len(req.params) != 0 && len(req.columns) == 0 {
 		return fmt.Errorf("columns are required when params are provided")
 	}
 
-	if r.Method == http.MethodPatch && len(req.NewParams) == 0 {
+	if r.Method == http.MethodPatch && len(req.newParams) == 0 {
 		return fmt.Errorf("new_params are required when method is PATCH")
 	}
 
@@ -59,21 +66,21 @@ func (req *RequestBody) validateRequestBody(r *http.Request) error {
 
 // function buildExistsQuery generates an SQL query string that is designed to query the
 // PostgreSQL database to see if an entry exists in the database.
-func (req *RequestBody) buildExistsQuery() (string, error) {
-	if len(req.Params) != len(req.Columns) {
+func (req *requestBody) buildExistsQuery() (string, error) {
+	if len(req.params) != len(req.columns) {
 		return "", fmt.Errorf("params and columns must have the same length")
 	}
 
 	var conditions []string
 
 	// conditions for WHERE
-	for i, column := range req.Columns {
+	for i, column := range req.columns {
 		conditions = append(conditions, fmt.Sprintf("%s = $%d", column, i+1))
 	}
 
 	query := fmt.Sprintf(
 		"SELECT EXISTS (SELECT 1 FROM %s WHERE %s)",
-		req.TableName,
+		req.tableName,
 		strings.Join(conditions, " AND "),
 	)
 
