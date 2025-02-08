@@ -10,14 +10,14 @@ import (
 
 // requestBody represents the structure of the request body.
 type requestBody struct {
-	tableName string   `json:"table_name"`
-	columns   []string `json:"columns"`
-	params    []string `json:"params"`
-	newParams []string `json:"new_params"`
+	TableName string   `json:"table_name"`
+	Columns   []string `json:"columns"`
+	Params    []string `json:"params"`
+	NewParams []string `json:"new_params"`
 }
 
 // validateRequestBody validates the request body based on the provided rules
-type RequestBodyErrorsMap map[*requestBody]error
+type RequestBodyValidationMap map[*requestBody]error
 
 // NewRequestBody parses the request body and validates it.
 func NewRequestBody(w http.ResponseWriter, r *http.Request) (RequestBodyErrorsMap, error) {
@@ -50,15 +50,15 @@ func NewRequestBody(w http.ResponseWriter, r *http.Request) (RequestBodyErrorsMa
 
 // validateRequestBody validates the request body based on the provided rules.
 func (req *requestBody) validateRequestBody(r *http.Request) error {
-	if req.tableName == "" {
+	if req.TableName == "" {
 		return fmt.Errorf("table_name is required")
 	}
 
-	if len(req.params) != 0 && len(req.columns) == 0 {
+	if len(req.Params) != 0 && len(req.Columns) == 0 {
 		return fmt.Errorf("columns are required when params are provided")
 	}
 
-	if r.Method == http.MethodPatch && len(req.newParams) == 0 {
+	if r.Method == http.MethodPatch && len(req.NewParams) == 0 {
 		return fmt.Errorf("new_params are required when method is PATCH")
 	}
 
@@ -68,20 +68,20 @@ func (req *requestBody) validateRequestBody(r *http.Request) error {
 // function buildExistsQuery generates an SQL query string that is designed to query the
 // PostgreSQL database to see if an entry exists in the database.
 func (req *requestBody) buildExistsQuery() (string, error) {
-	if len(req.params) != len(req.columns) {
+	if len(req.Params) != len(req.Columns) {
 		return "", fmt.Errorf("params and columns must have the same length")
 	}
 
 	var conditions []string
 
 	// conditions for WHERE
-	for i, column := range req.columns {
+	for i, column := range req.Columns {
 		conditions = append(conditions, fmt.Sprintf("%s = $%d", column, i+1))
 	}
 
 	query := fmt.Sprintf(
 		"SELECT EXISTS (SELECT 1 FROM %s WHERE %s)",
-		req.tableName,
+		req.TableName,
 		strings.Join(conditions, " AND "),
 	)
 
