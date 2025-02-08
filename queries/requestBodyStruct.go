@@ -16,6 +16,7 @@ type requestBody struct {
 	newParams []string `json:"new_params"`
 }
 
+// validateRequestBody validates the request body based on the provided rules
 type RequestBodyErrorsMap map[*requestBody]error
 
 // NewRequestBody parses the request body and validates it.
