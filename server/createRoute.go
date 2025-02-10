@@ -8,6 +8,7 @@ import (
 	"pgproxy/queries"
 )
 
+// rewrite returned value
 type RequestBodyErrorsMap map[queries.RequestBody]error
 
 func createRecord(w http.ResponseWriter, r *http.Request) {
