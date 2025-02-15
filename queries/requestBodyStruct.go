@@ -7,49 +7,54 @@ import (
 	"net/http"
 )
 
-// requestBody represents the structure of the request body.
-type requestBody struct {
+// crudEntry represents the structure of the request body.
+type crudEntry struct {
 	TableName string   `json:"table_name"`
 	Columns   []string `json:"columns"`
 	Params    []string `json:"params"`
 	NewParams []string `json:"new_params"`
 }
 
-// validateRequestBody validates the request body based on the provided rules
-type requestBodyValidationMap map[*requestBody]error
+type requestBody struct {
+	entries     []*crudEntry
+	entryErrors map[*crudEntry]error
+	badIdxs     []int
+}
 
-// NewRequestBody parses the request body and validates it.
-func NewRequestBody(w http.ResponseWriter, r *http.Request) (requestBodyValidationMap, error) {
-	var requestBodies []*requestBody
+// newRequestBody parses the request body and validates it.
+func newRequestBody(w http.ResponseWriter, r *http.Request) (*requestBody, error) {
+	var parsedEntries []*crudEntry
 
-	if err := json.NewDecoder(r.Body).Decode(&requestBodies); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&parsedEntries); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Cannot decode request body: %s", err)
 		log.Printf("Cannot decode request body: %s", err)
 		return nil, err
 	}
 
-	rbvm := make(requestBodyValidationMap) // 'rbvm' stands for RequestBodyValidationMap
-	badIndexSlice := make([]int, 0)
+	rb := new(requestBody) // 'rb' stands for 'Request Body'
+	rb.entries = make([]*crudEntry, 0)
+	rb.entryErrors = make(map[*crudEntry]error)
+	rb.badIdxs = make([]int, 0)
 
 	// validate request body
 	log.Println("validating data...")
-	for i, rb := range requestBodies { // 'rb' stands for RequestBody
-		if err := rb.validateRequestBody(r); err != nil {
-			log.Printf("Invalid request body with idx %d: %s", i, err)
-			badIndexSlice = append(badIndexSlice, i)
-			rbvm[rb] = err
+	for i, parsedEntry := range parsedEntries {
+		if err := parsedEntry.validateRequestBody(r); err != nil {
+			log.Printf("Invalid request item with idx %d: %s", i, err)
+			rb.badIdxs = append(rb.badIdxs, i)
+			rb.entryErrors[parsedEntry] = err
 		} else {
-			rbvm[rb] = nil
+			rb.entries = append(rb.entries, parsedEntry)
 		}
 	}
 	log.Println("the data validation is over")
 
-	return rbvm, nil
+	return rb, nil
 }
 
 // validateRequestBody validates the request body based on the provided rules.
-func (req *requestBody) validateRequestBody(r *http.Request) error {
+func (req *crudEntry) validateRequestBody(r *http.Request) error {
 	if req.TableName == "" {
 		return fmt.Errorf("table_name is required")
 	}
