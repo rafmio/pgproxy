@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 )
 
 // requestBody represents the structure of the request body.
@@ -17,10 +16,10 @@ type requestBody struct {
 }
 
 // validateRequestBody validates the request body based on the provided rules
-type RequestBodyValidationMap map[*requestBody]error
+type requestBodyValidationMap map[*requestBody]error
 
 // NewRequestBody parses the request body and validates it.
-func NewRequestBody(w http.ResponseWriter, r *http.Request) (RequestBodyErrorsMap, error) {
+func NewRequestBody(w http.ResponseWriter, r *http.Request) (requestBodyValidationMap, error) {
 	var requestBodies []*requestBody
 
 	if err := json.NewDecoder(r.Body).Decode(&requestBodies); err != nil {
@@ -30,22 +29,23 @@ func NewRequestBody(w http.ResponseWriter, r *http.Request) (RequestBodyErrorsMa
 		return nil, err
 	}
 
-	rbem := make(RequestBodyErrorsMap) // 'rbem' stands for RequestBodyErrorMap
+	rbvm := make(requestBodyValidationMap) // 'rbvm' stands for RequestBodyValidationMap
 	badIndexSlice := make([]int, 0)
 
 	// validate request body
+	log.Println("validating data...")
 	for i, rb := range requestBodies { // 'rb' stands for RequestBody
 		if err := rb.validateRequestBody(r); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
 			log.Printf("Invalid request body with idx %d: %s", i, err)
 			badIndexSlice = append(badIndexSlice, i)
-			rbem[rb] = err
+			rbvm[rb] = err
 		} else {
-			rbem[rb] = nil
+			rbvm[rb] = nil
 		}
 	}
+	log.Println("the data validation is over")
 
-	return rbem, nil
+	return rbvm, nil
 }
 
 // validateRequestBody validates the request body based on the provided rules.
@@ -63,27 +63,4 @@ func (req *requestBody) validateRequestBody(r *http.Request) error {
 	}
 
 	return nil
-}
-
-// function buildExistsQuery generates an SQL query string that is designed to query the
-// PostgreSQL database to see if an entry exists in the database.
-func (req *requestBody) buildExistsQuery() (string, error) {
-	if len(req.Params) != len(req.Columns) {
-		return "", fmt.Errorf("params and columns must have the same length")
-	}
-
-	var conditions []string
-
-	// conditions for WHERE
-	for i, column := range req.Columns {
-		conditions = append(conditions, fmt.Sprintf("%s = $%d", column, i+1))
-	}
-
-	query := fmt.Sprintf(
-		"SELECT EXISTS (SELECT 1 FROM %s WHERE %s)",
-		req.TableName,
-		strings.Join(conditions, " AND "),
-	)
-
-	return query, nil
 }
