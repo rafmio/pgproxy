@@ -16,13 +16,15 @@ type CrudEntry struct {
 }
 
 type RequestBody struct {
-	Entries     []*CrudEntry
-	EntryErrors map[*CrudEntry]error
-	BadIdxs     []int
+	Method        string // http.Request.Method
+	OperationType string // one of the CRUD
+	Entries       []*CrudEntry
+	EntryErrors   map[*CrudEntry]error
+	BadIdxs       []int
 }
 
 // newRequestBody parses the request body and validates it.
-func newRequestBody(w http.ResponseWriter, r *http.Request) (*RequestBody, error) {
+func NewRequestBody(w http.ResponseWriter, r *http.Request) (*RequestBody, error) {
 	var parsedEntries []*CrudEntry
 
 	if err := json.NewDecoder(r.Body).Decode(&parsedEntries); err != nil {

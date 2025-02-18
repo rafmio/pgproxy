@@ -7,13 +7,7 @@ import (
 )
 
 type ResponseBody struct {
-	// Meta info
-	Method        string // http.Request.Method
-	OperationType string // one of the CRUD
-
-	// Errors
-	EntryErrors map[*CrudEntry]error
-	BadIdxs     []int
+	RequestBody *RequestBody
 
 	// Info for 'CREATE', 'UPDATE' and 'DELETE'
 	Result       sql.Result
@@ -21,21 +15,29 @@ type ResponseBody struct {
 	RowsAffected int64
 
 	// Info for 'READ'
-	Rows    *sql.Rows
-	Columns []string
-	Entries []Entry // []map[string]string
+	Rows        *sql.Rows
+	Columns     []string
+	ColumnTypes []*sql.ColumnType
+	Entries     []Entry // []map[string]string
 
 	// Error handling
 	Error error // ?
 }
 
-type Entry map[string]string
+type Entry map[string]any
+
+func NewResponseBody(req *RequestBody) *ResponseBody {
+	rb := new(ResponseBody)
+	rb.RequestBody = req
+
+	return rb
+}
 
 func (rb *ResponseBody) ProcessResult() error {
 	if rb.Result != nil {
 		var err error
 
-		if rb.OperationType == "CREATE" || rb.Method == http.MethodPost {
+		if rb.RequestBody.OperationType == "CREATE" || rb.RequestBody.Method == http.MethodPost {
 			rb.LastID, err = rb.Result.LastInsertId()
 			if err != nil {
 				return err
@@ -90,6 +92,24 @@ func (rb *ResponseBody) ProcessRows() error {
 			log.Printf("processing *sql.Rows: %s", err)
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (rb *ResponseBody) getColumnMetadata(rows *sql.Rows) error {
+	var err error
+
+	rb.Columns, err = rows.Columns()
+	if err != nil {
+		log.Printf("fetching metadata - *sql.Rows.Columns(): %s", err)
+		return err
+	}
+
+	rb.ColumnTypes, err = rows.ColumnTypes()
+	if err != nil {
+		log.Printf("fetching metadata - *sql.Rows.ColumnTypes(): %s", err)
+		return err
 	}
 
 	return nil
