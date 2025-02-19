@@ -2,6 +2,8 @@ package models
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 )
@@ -54,11 +56,9 @@ func (rb *ResponseBody) ProcessResult() error {
 
 func (rb *ResponseBody) ProcessRows() error {
 	if rb.Rows != nil {
-		var err error
-		rb.Columns, err = rb.Rows.Columns()
+		// we receive information about column names and types of received data (DB data types)
+		err := rb.getColumnMetadata()
 		if err != nil {
-			log.Printf("proccing *sql.Rows.Columns(): %s", err)
-
 			return err
 		}
 
@@ -97,18 +97,20 @@ func (rb *ResponseBody) ProcessRows() error {
 	return nil
 }
 
-func (rb *ResponseBody) getColumnMetadata(rows *sql.Rows) error {
+func (rb *ResponseBody) getColumnMetadata() error {
 	var err error
 
-	rb.Columns, err = rows.Columns()
+	rb.Columns, err = rb.Rows.Columns()
 	if err != nil {
-		log.Printf("fetching metadata - *sql.Rows.Columns(): %s", err)
+		err = errors.New(fmt.Sprintf("fetching metadata - *sql.Rows.Columns() %s", err))
+		log.Println(err)
 		return err
 	}
 
-	rb.ColumnTypes, err = rows.ColumnTypes()
+	rb.ColumnTypes, err = rb.Rows.ColumnTypes()
 	if err != nil {
-		log.Printf("fetching metadata - *sql.Rows.ColumnTypes(): %s", err)
+		err = errors.New(fmt.Sprintf("fetching metadata - *sql.Rows.ColumnTypes() %s", err))
+		log.Println(err)
 		return err
 	}
 
