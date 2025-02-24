@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"time"
 )
 
 type ResponseBody struct {
@@ -54,6 +56,30 @@ func (rb *ResponseBody) ProcessResult() error {
 	return nil
 }
 
+var emptyValues = map[string]interface{}{
+	"INT":              0,
+	"INTEGER":          0,
+	"SMALLINT":         0,
+	"BIGINT":           0,
+	"SERIAL":           0,
+	"BIGSERIAL":        0,
+	"FLOAT":            0.0,
+	"DOUBLE PRECISION": 0.0,
+	"REAL":             0.0,
+	"NUMERIC":          0.0,
+	"DECIMAL":          0.0,
+	"BOOLEAN":          false,
+	"VARCHAR":          "",
+	"TEXT":             "",
+	"CHAR":             "",
+	"DATE":             time.Time{},
+	"TIME":             time.Time{},
+	"TIMESTAMP":        time.Time{},
+	"TIMESTAMPTZ":      time.Time{},
+	"INET":             "",
+	"CIDR":             "",
+}
+
 func (rb *ResponseBody) ProcessRows() error {
 	if rb.Rows != nil {
 		// we receive information about column names and types of received data (DB data types)
@@ -78,10 +104,28 @@ func (rb *ResponseBody) ProcessRows() error {
 
 			for i, col := range rb.Columns {
 				val := values[i]
+				columnType := rb.ColumnTypes[i].DatabaseTypeName()
+
 				if val == nil {
-					entry[col] = ""
+					entry[col] = emptyValues[columnType]
+					continue
 				} else {
-					entry[col] = string(val.([]byte))
+					switch columnType {
+					case "INT", "INTEGER", "SMALLINT", "BIGINT", "SERIAL", "BIGSERIAL":
+						entry[col] = val.(int64)
+					case "FLOAT", "DOUBLE PRECISION", "REAL", "NUMERIC", "DECIMAL":
+						entry[col] = val.(float64)
+					case "BOOLEAN":
+						entry[col] = val.(bool)
+					case "VARCHAR", "TEXT", "CHAR":
+						entry[col] = string(val.([]byte))
+					case "DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ":
+						entry[col] = val.(time.Time).Format(time.RFC3339)
+					case "INET", "CIDR":
+						entry[col] = net.IP(val.([]byte)).String()
+					default:
+						entry[col] = string(val.([]byte)) // Fallback to string for unknown types
+					}
 				}
 			}
 
@@ -115,4 +159,61 @@ func (rb *ResponseBody) getColumnMetadata() error {
 	}
 
 	return nil
+}
+
+func convertDatabaseValue(columnType string, val interface{}, col string) (interface{}, error) {
+	if val == nil {
+		return nil, nil // Возвращаем nil, если значение NULL
+	}
+
+	switch columnType {
+	case "INT", "INTEGER", "SMALLINT", "BIGINT", "SERIAL", "BIGSERIAL":
+		if v, ok := val.(int64); ok {
+			return v, nil
+		}
+		log.Printf("unexpected type for column %s: expected int64, got %T", col, val)
+		return 0, nil // Значение по умолчанию для целых чисел
+
+	case "FLOAT", "DOUBLE PRECISION", "REAL", "NUMERIC", "DECIMAL":
+		if v, ok := val.(float64); ok {
+			return v, nil
+		}
+		log.Printf("unexpected type for column %s: expected float64, got %T", col, val)
+		return 0.0, nil // Значение по умолчанию для чисел с плавающей запятой
+
+	case "BOOLEAN":
+		if v, ok := val.(bool); ok {
+			return v, nil
+		}
+		log.Printf("unexpected type for column %s: expected bool, got %T", col, val)
+		return false, nil // Значение по умолчанию для булевых значений
+
+	case "VARCHAR", "TEXT", "CHAR":
+		if v, ok := val.([]byte); ok {
+			return string(v), nil
+		}
+		log.Printf("unexpected type for column %s: expected []byte, got %T", col, val)
+		return "", nil // Значение по умолчанию для строк
+
+	case "DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ":
+		if v, ok := val.(time.Time); ok {
+			return v.Format(time.RFC3339), nil
+		}
+		log.Printf("unexpected type for column %s: expected time.Time, got %T", col, val)
+		return time.Time{}.Format(time.RFC3339), nil // Значение по умолчанию для времени
+
+	case "INET", "CIDR":
+		if v, ok := val.([]byte); ok {
+			return net.IP(v).String(), nil
+		}
+		log.Printf("unexpected type for column %s: expected []byte, got %T", col, val)
+		return "", nil // Значение по умолчанию для IP-адресов
+
+	default:
+		if v, ok := val.([]byte); ok {
+			return string(v), nil
+		}
+		log.Printf("unexpected type for column %s: expected []byte, got %T", col, val)
+		return "", nil // Значение по умолчанию для неизвестных типов
+	}
 }
