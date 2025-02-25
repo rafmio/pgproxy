@@ -8,15 +8,6 @@ import (
 	"time"
 )
 
-type columnValueConvertor struct {
-	entry      map[string]any
-	columnType string
-	columnName string
-	values     []any
-	valuesPtr  []any
-	rowError   error
-}
-
 func fillNilValues(entry Entry, col string, columnType string) {
 	var emptyValues = map[string]interface{}{
 		"INT":              0,
