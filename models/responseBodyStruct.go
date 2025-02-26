@@ -65,30 +65,23 @@ func (rb *ResponseBody) ProcessRows() error {
 	}
 
 	for rb.Rows.Next() {
-		entry := make(Entry)
-		values := make([]any, len(rb.ColumnNames))
-		valuePtrs := make([]any, len(rb.ColumnNames))
+		convertor := newValueConvertor(rb)
 
-		for i := range rb.ColumnNames {
-			valuePtrs[i] = &values[i]
-		}
-
-		if err := rb.Rows.Scan(valuePtrs...); err != nil {
+		if err := rb.Rows.Scan(convertor.valuePtrs...); err != nil {
 			log.Printf("scanning *sql.Rows: %s", err)
 			return err
 		}
 
-		for i, col := range rb.ColumnNames {
-			val := values[i]
-			columnType := rb.ColumnTypes[i].DatabaseTypeName()
+		for i, columnName := range rb.ColumnNames {
+			columnValue := convertor.values[i]
+			columnType := rb.ColumnTypes[i]
 
-			if val == nil {
+			if columnValue == nil {
 				// entry[col] = emptyValues[columnType]
-				fillNilValues(entry, col, columnType)
-				// continue // rb.Entries slice appending will not be done?
+				fillNilValues(convertor.entry, columnName, columnType)
 			} else {
 				// Depending on the column type, assign the value to the entry map
-				entry[col], err = convertDatabaseValue(columnType, val, col)
+				convertor.entry[columnName], err = convertDatabaseValue(columnType, columnValue, columnName)
 				// ???
 			}
 		}

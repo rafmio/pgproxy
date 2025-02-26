@@ -8,16 +8,30 @@ import (
 	"time"
 )
 
-type columnValueConvertor struct {
-	entry      map[string]any
-	columnType string
-	columnName string
-	values     []any
-	valuesPtr  []any
-	rowError   error
+type valueConvertor struct {
+	entry map[string]any
+	// columnType string
+	// columnName string
+	values    []any
+	valuesPtr []any // sql.Rows.Scan() gets only pointers as an argument
+	rowError  error
 }
 
-func fillNilValues(entry Entry, col string, columnType string) {
+func newValueConvertor(rb *ResponseBody) *valueConvertor {
+	cvc := new(valueConvertor)
+
+	cvc.entry = make(map[string]any)
+	cvc.values = make([]any, len(rb.ColumnNames))
+	cvc.valuesPtr = make([]any, len(rb.ColumnNames))
+
+	for i := range rb.ColumnNames {
+		cvc.valuesPtr[i] = &cvc.values[i]
+	}
+
+	return cvc
+}
+
+func fillNilValues(entry map[string]any, columnNName string, columnType string) {
 	var emptyValues = map[string]interface{}{
 		"INT":              0,
 		"INTEGER":          0,
@@ -40,14 +54,16 @@ func fillNilValues(entry Entry, col string, columnType string) {
 		"TIMESTAMPTZ":      time.Time{},
 		"INET":             "",
 		"CIDR":             "",
+		"BYTEA":            []byte{},
 	}
 
 	if _, ok := emptyValues[columnType]; !ok {
-		log.Printf("unknown column type for column %s: %s", col, columnType)
+		log.Printf("unknown column type for column %s: %s", columnNName, columnType)
+		entry[columnNName] = emptyValues["BYTEA"]
 		return
 	}
 
-	entry[col] = emptyValues[columnType]
+	entry[columnNName] = emptyValues[columnType]
 }
 
 func convertDatabaseValue(columnType string, val interface{}, col string) (interface{}, error) {

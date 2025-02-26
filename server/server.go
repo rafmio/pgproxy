@@ -8,12 +8,6 @@ import (
 	"time"
 )
 
-// Columns []string `json:"columns"`
-// type RequestBody struct {
-// 	Query  string   `json:"query"`
-// 	Params []string `json:"params"`
-// }
-
 type handlerFunc func(w http.ResponseWriter, r *http.Request)
 
 func NewServer() *http.Server {
