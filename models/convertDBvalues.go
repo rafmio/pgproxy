@@ -14,7 +14,7 @@ type valueConvertor struct {
 	// columnName string
 	values    []any
 	valuesPtr []any // sql.Rows.Scan() gets only pointers as an argument
-	rowError  error
+	rowErrors error
 }
 
 func newValueConvertor(rb *ResponseBody) *valueConvertor {
