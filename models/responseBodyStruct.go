@@ -67,7 +67,7 @@ func (rb *ResponseBody) ProcessRows() error {
 	for rb.Rows.Next() {
 		convertor := newValueConvertor(rb)
 
-		if err := rb.Rows.Scan(convertor.valuePtrs...); err != nil {
+		if err := rb.Rows.Scan(convertor.valuesPtr...); err != nil {
 			log.Printf("scanning *sql.Rows: %s", err)
 			return err
 		}
@@ -77,16 +77,19 @@ func (rb *ResponseBody) ProcessRows() error {
 			columnType := rb.ColumnTypes[i]
 
 			if columnValue == nil {
-				// entry[col] = emptyValues[columnType]
-				fillNilValues(convertor.entry, columnName, columnType)
+				convertor.entry[columnName] = string("")
 			} else {
 				// Depending on the column type, assign the value to the entry map
-				convertor.entry[columnName], err = convertDatabaseValue(columnType, columnValue, columnName)
+				convertor.entry[columnName], err = convertDatabaseValue(
+					columnType,
+					columnValue,
+					columnName,
+				)
 				// ???
 			}
 		}
 
-		rb.Entries = append(rb.Entries, entry)
+		rb.Entries = append(rb.Entries, convertor.entry)
 	}
 
 	if err := rb.Rows.Err(); err != nil {

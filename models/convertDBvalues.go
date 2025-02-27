@@ -1,17 +1,13 @@
 package models
 
 import (
-	"errors"
-	"fmt"
 	"log"
 	"net"
 	"time"
 )
 
 type valueConvertor struct {
-	entry map[string]any
-	// columnType string
-	// columnName string
+	entry     map[string]any
 	values    []any
 	valuesPtr []any // sql.Rows.Scan() gets only pointers as an argument
 	rowErrors error
@@ -31,43 +27,7 @@ func newValueConvertor(rb *ResponseBody) *valueConvertor {
 	return cvc
 }
 
-func fillNilValues(entry map[string]any, columnNName string, columnType string) {
-	var emptyValues = map[string]interface{}{
-		"INT":              0,
-		"INTEGER":          0,
-		"SMALLINT":         0,
-		"BIGINT":           0,
-		"SERIAL":           0,
-		"BIGSERIAL":        0,
-		"FLOAT":            0.0,
-		"DOUBLE PRECISION": 0.0,
-		"REAL":             0.0,
-		"NUMERIC":          0.0,
-		"DECIMAL":          0.0,
-		"BOOLEAN":          false,
-		"VARCHAR":          "",
-		"TEXT":             "",
-		"CHAR":             "",
-		"DATE":             time.Time{},
-		"TIME":             time.Time{},
-		"TIMESTAMP":        time.Time{},
-		"TIMESTAMPTZ":      time.Time{},
-		"INET":             "",
-		"CIDR":             "",
-		"BYTEA":            []byte{},
-	}
-
-	if _, ok := emptyValues[columnType]; !ok {
-		log.Printf("unknown column type for column %s: %s", columnNName, columnType)
-		entry[columnNName] = emptyValues["BYTEA"]
-		return
-	}
-
-	entry[columnNName] = emptyValues[columnType]
-}
-
 func convertDatabaseValue(columnType string, val interface{}, col string) (interface{}, error) {
-	err := errors.New(fmt.Sprintf("unexpected type for column %s with value's type %T", col, val))
 
 	switch columnType {
 	case "INT", "INTEGER", "SMALLINT", "BIGINT", "SERIAL", "BIGSERIAL":
