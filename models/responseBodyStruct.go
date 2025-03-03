@@ -85,7 +85,6 @@ func (rb *ResponseBody) ProcessRows() error {
 					columnValue,
 					columnName,
 				)
-				// ???
 			}
 		}
 
