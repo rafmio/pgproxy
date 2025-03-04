@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -15,14 +16,6 @@ type SQLRows struct {
 	types   []string
 	data    []map[string]any
 	errors  []error
-}
-
-// SQLResult is used to store the results of INSERT, UPDATE, DELETE operations
-type SQLResult struct {
-	result   sql.Result
-	lastID   int64
-	affected int64
-	errors   []error
 }
 
 func (r *SQLRows) ParseMeta() error {
@@ -255,4 +248,32 @@ func convertBytea(v any) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("cannot convert %T to []byte", v)
 	}
+}
+
+func (r *SQLRows) ToJSON() ([]byte, error) {
+	// Создаем алиас для кастомной сериализации
+	type customData map[string]interface{}
+	var serializableData []customData
+
+	// Конвертируем данные с учетом специальных типов
+	for _, row := range r.data {
+		customRow := make(customData)
+		for key, value := range row {
+			switch v := value.(type) {
+			case time.Time:
+				customRow[key] = v.Format(time.RFC3339) // Сериализуем время в строку
+			case net.IP:
+				customRow[key] = v.String() // IP-адрес в строковое представление
+			case net.IPNet:
+				customRow[key] = v.String() // IP-сеть в строку CIDR
+			case []byte:
+				customRow[key] = string(v) // Бинарные данные в base64 или строку
+			default:
+				customRow[key] = value
+			}
+		}
+		serializableData = append(serializableData, customRow)
+	}
+
+	return json.MarshalIndent(serializableData, "", "  ")
 }

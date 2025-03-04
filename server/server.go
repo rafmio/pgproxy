@@ -8,31 +8,44 @@ import (
 	"time"
 )
 
-type handlerFunc func(w http.ResponseWriter, r *http.Request)
+type ServerConfig struct {
+	IP   string
+	Port string
+}
 
-func NewServer() *http.Server {
-	server := new(http.Server)
-
-	// Set up environment variables for IP and PORT if not provided
-	port := os.Getenv("PORT")
-	ip := os.Getenv("IP")
-	if ip == "" || port == "" {
-		// Default to 8080 and 0.0.0.0 if not provided in environment variables
-		log.Println("Environment variables IP and PORT not provided. Defaulting to 0.0.0.0:8080.")
+func loadConfig() ServerConfig {
+	port, ok := os.LookupEnv("PORT")
+	if !ok {
+		log.Println("Port environment variable not set. Using default: 8080")
 		port = "8080"
+	}
+
+	ip, ok := os.LookupEnv("IP")
+	if !ok {
+		log.Println("IP environment variable not set. Using default: 0.0.0.0")
 		ip = "0.0.0.0"
 	}
 
-	addr := fmt.Sprintf("%s:%s", ip, port)
+	return ServerConfig{IP: ip, Port: port}
+}
 
-	server.Addr = addr
-	server.Handler = newServeMux() // Creating a new router and attach it to the server
-	server.ReadTimeout = 10 * time.Second
+func NewServer() *http.Server {
+	cfg := loadConfig()
+	addr := fmt.Sprintf("%s:%s", cfg.IP, cfg.Port)
+
+	server := &http.Server{
+		Addr:         addr,
+		Handler:      newServeMux(),
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
 
 	return server
 }
 
-// newServeMux() creates a new router and attaches handlers to it
+type handlerFunc func(w http.ResponseWriter, r *http.Request)
+
 func newServeMux() *http.ServeMux {
 	mux := http.NewServeMux()
 
@@ -45,10 +58,30 @@ func newServeMux() *http.ServeMux {
 	}
 
 	for path, handler := range endpoints {
-		mux.HandleFunc(path, handler)
+		mux.HandleFunc(path, loggingMiddleware(recoveryMiddleware(handler)))
+		log.Printf("Registered endpoint: %s", path)
 	}
 
 	return mux
+}
+
+func loggingMiddleware(next handlerFunc) handlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Request: %s %s", r.Method, r.URL.Path)
+		next(w, r)
+	}
+}
+
+func recoveryMiddleware(next handlerFunc) handlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("Panic: %v", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}()
+		next(w, r)
+	}
 }
 
 // RunServer() runs server and properly stop working
