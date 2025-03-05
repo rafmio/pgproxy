@@ -8,12 +8,14 @@ import (
 	"time"
 )
 
-type ServerConfig struct {
+type serverConfig struct {
 	IP   string
 	Port string
 }
 
-func loadConfig() ServerConfig {
+type handlerFunc func(w http.ResponseWriter, r *http.Request)
+
+func loadConfig() serverConfig {
 	port, ok := os.LookupEnv("PORT")
 	if !ok {
 		log.Println("Port environment variable not set. Using default: 8080")
@@ -26,10 +28,10 @@ func loadConfig() ServerConfig {
 		ip = "0.0.0.0"
 	}
 
-	return ServerConfig{IP: ip, Port: port}
+	return serverConfig{IP: ip, Port: port}
 }
 
-func NewServer() *http.Server {
+func newServer() *http.Server {
 	cfg := loadConfig()
 	addr := fmt.Sprintf("%s:%s", cfg.IP, cfg.Port)
 
@@ -43,8 +45,6 @@ func NewServer() *http.Server {
 
 	return server
 }
-
-type handlerFunc func(w http.ResponseWriter, r *http.Request)
 
 func newServeMux() *http.ServeMux {
 	mux := http.NewServeMux()
@@ -86,7 +86,7 @@ func recoveryMiddleware(next handlerFunc) handlerFunc {
 
 // RunServer() runs server and properly stop working
 func RunServer() {
-	server := NewServer()
+	server := newServer()
 
 	log.Printf("Starting server on %s...\n", server.Addr)
 	if err := server.ListenAndServe(); err != nil {
