@@ -1,0 +1,14 @@
+pgproxy/
+├── cmd/
+│   └── pgproxy/         # Основной исполняемый файл (main.go)
+├── internal/
+│   ├── config/          # Конфигурация (env, yaml)
+│   ├── transport/       # HTTP-роутер и middleware
+│   ├── handler/         # Обработчики HTTP-запросов (POST/GET/DELETE...)
+│   ├── parser/          # Парсинг JSON → SQLparams + валидация
+│   ├── sqlbuilder/      # Генерация SQL (CRUD)
+│   ├── db/              # Подключение к PostgreSQL, выполнение запросов
+│   └── converter/       # Преобразование sql.Rows/sql.Result → JSON
+├── pkg/                 # Вспомогательные пакеты (утилиты, ошибки)
+├── scripts/             # Миграции, тестовые скрипты
+└── test/                # Юнит- и интеграционные тесты

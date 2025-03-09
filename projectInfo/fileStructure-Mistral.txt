@@ -1,0 +1,21 @@
+pgproxy/
+├── cmd/
+│   └── pgproxy/
+│       └── main.go
+├── internal/
+│   ├── handler/
+│   │   ├── handler.go
+│   │   └── validation.go
+│   ├── db/
+│   │   ├── db.go
+│   │   └── dbops.go
+│   ├── sqlgen/
+│   │   └── sqlgen.go
+│   └── utils/
+│       └── utils.go
+├── pkg/
+│   └── models/
+│       └── models.go
+├── go.mod
+└── go.sum
+
