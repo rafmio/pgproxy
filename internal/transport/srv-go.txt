@@ -1,0 +1,145 @@
+package transport
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"runtime/debug"
+	"strconv"
+	"time"
+)
+type Config struct {
+	IP           string
+	Port         string
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	IdleTimeout  time.Duration
+	MaxBodyBytes int64
+}
+const (
+	defaultIP           = "0.0.0.0"
+	defaultPort         = "8080"
+	defaultReadTimeout  = 10 * time.Second
+	defaultWriteTimeout = 10 * time.Second
+	defaultIdleTimeout  = 120 * time.Second
+	defaultMaxBodyBytes = 1_048_576 // 1MB
+)
+func (c *Config) Addr() string {
+	return net.JoinHostPort(c.IP, c.Port)
+}
+func (c *Config) Validate() error {
+	if _, err := net.ResolveTCPAddr("tcp", c.Addr()); err != nil {
+		return fmt.Errorf("invalid address: %w", err)
+	}
+	return nil
+}
+func loadConfig() (*Config, error) {
+	cfg := &Config{
+		IP:           getEnv("IP", defaultIP),
+		Port:         getEnv("PORT", defaultPort),
+		ReadTimeout:  parseDurationEnv("READ_TIMEOUT", defaultReadTimeout),
+		WriteTimeout: parseDurationEnv("WRITE_TIMEOUT", defaultWriteTimeout),
+		IdleTimeout:  parseDurationEnv("IDLE_TIMEOUT", defaultIdleTimeout),
+		MaxBodyBytes: parseInt64Env("MAX_BODY_BYTES", defaultMaxBodyBytes),
+	}
+	return cfg, nil
+}
+func getEnv(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
+}
+func parseDurationEnv(key string, defaultValue time.Duration) time.Duration {
+	if value, exists := os.LookupEnv(key); exists {
+		duration, err := time.ParseDuration(value)
+		if err != nil {
+			log.Printf("Invalid duration format for %s: %v. Using default", key, err)
+			return defaultValue
+		}
+		return duration
+	}
+	return defaultValue
+}
+func parseInt64Env(key string, defaultValue int64) int64 {
+	if value, exists := os.LookupEnv(key); exists {
+		intValue, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			log.Printf("Invalid integer format for %s: %v. Using default", key, err)
+			return defaultValue
+		}
+		return intValue
+	}
+	return defaultValue
+}
+type Middleware func(http.Handler) http.Handler
+func chainMiddleware(h http.Handler, m ...Middleware) http.Handler {
+	for i := len(m) - 1; i >= 0; i-- {
+		h = m[i](h)
+	}
+	return h
+}
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		log.Printf("Started %s %s", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+		log.Printf("Completed %s in %v", r.URL.Path, time.Since(start))
+	})
+}
+func recoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				stack := debug.Stack()
+				log.Printf("PANIC: %v\n%s", err, stack)
+				errorResponse(w, http.StatusInternalServerError, "Internal Server Error")
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+func errorResponse(w http.ResponseWriter, code int, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+func newServeMux(cfg *Config) *http.ServeMux {
+	mux := http.NewServeMux()
+	endpoints := map[string]http.HandlerFunc{
+		"/create": createRecord,
+		"/read":   readRecord,
+		"/update": updateRecord,
+		"/delete": deleteRecord,
+		"/health": healthCheck,
+	}
+	for path, handler := range endpoints {
+		wrappedHandler := http.MaxBytesHandler(handler, cfg.MaxBodyBytes)
+		mux.Handle(
+			path,
+			chainMiddleware(
+				wrappedHandler,
+				loggingMiddleware,
+				recoveryMiddleware,
+			),
+		)
+		log.Printf("Registered endpoint: %s", path)
+	}
+	return mux
+}
+func newServer(cfg *Config) *http.Server {
+	return &http.Server{
+		Addr:         cfg.Addr(),
+		Handler:      newServeMux(cfg),
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
+	}
+}
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
