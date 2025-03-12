@@ -1,28 +1,29 @@
-// internal/transport/server.go
 package transport
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"runtime/debug"
 	"strconv"
+	"syscall"
 	"time"
 )
 
-type Config struct {
-	IP           string
-	Port         string
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
-	MaxBodyBytes int64
+type config struct {
+	ip           string
+	port         string
+	readTimeout  time.Duration
+	writeTimeout time.Duration
+	idleTimeout  time.Duration
+	maxBodyBytes int64
 }
 
-// Default configuration values
 const (
 	defaultIP           = "0.0.0.0"
 	defaultPort         = "8080"
@@ -32,31 +33,34 @@ const (
 	defaultMaxBodyBytes = 1_048_576 // 1MB
 )
 
-func (c *Config) Addr() string {
-	return net.JoinHostPort(c.IP, c.Port)
+func (c *config) addr() string {
+	return net.JoinHostPort(c.ip, c.port)
 }
 
-func (c *Config) Validate() error {
-	if _, err := net.ResolveTCPAddr("tcp", c.Addr()); err != nil {
+func (c *config) validate() error {
+	if _, err := net.ResolveTCPAddr("tcp", c.addr()); err != nil {
 		return fmt.Errorf("invalid address: %w", err)
 	}
 	return nil
 }
 
-func loadConfig() (*Config, error) {
-	cfg := &Config{
-		IP:           getEnv("IP", defaultIP),
-		Port:         getEnv("PORT", defaultPort),
-		ReadTimeout:  parseDurationEnv("READ_TIMEOUT", defaultReadTimeout),
-		WriteTimeout: parseDurationEnv("WRITE_TIMEOUT", defaultWriteTimeout),
-		IdleTimeout:  parseDurationEnv("IDLE_TIMEOUT", defaultIdleTimeout),
-		MaxBodyBytes: parseInt64Env("MAX_BODY_BYTES", defaultMaxBodyBytes),
+func loadConfig() (*config, error) {
+	cfg := &config{
+		ip:           getEnv("IP", defaultIP),
+		port:         getEnv("PORT", defaultPort),
+		readTimeout:  parseDurationEnv("READ_TIMEOUT", defaultReadTimeout),
+		writeTimeout: parseDurationEnv("WRITE_TIMEOUT", defaultWriteTimeout),
+		idleTimeout:  parseDurationEnv("IDLE_TIMEOUT", defaultIdleTimeout),
+		maxBodyBytes: parseInt64Env("MAX_BODY_BYTES", defaultMaxBodyBytes),
+	}
+
+	if err := cfg.validate(); err != nil {
+		return nil, err
 	}
 
 	return cfg, nil
 }
 
-// Helpers for environment parsing
 func getEnv(key, defaultValue string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value
@@ -88,9 +92,9 @@ func parseInt64Env(key string, defaultValue int64) int64 {
 	return defaultValue
 }
 
-type Middleware func(http.Handler) http.Handler
+type middleware func(http.Handler) http.Handler
 
-func chainMiddleware(h http.Handler, m ...Middleware) http.Handler {
+func chainMiddleware(h http.Handler, m ...middleware) http.Handler {
 	for i := len(m) - 1; i >= 0; i-- {
 		h = m[i](h)
 	}
@@ -101,9 +105,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		log.Printf("Started %s %s", r.Method, r.URL.Path)
-
 		next.ServeHTTP(w, r)
-
 		log.Printf("Completed %s in %v", r.URL.Path, time.Since(start))
 	})
 }
@@ -127,9 +129,8 @@ func errorResponse(w http.ResponseWriter, code int, msg string) {
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
-func newServeMux(cfg *Config) *http.ServeMux {
+func newServeMux(cfg *config) *http.ServeMux {
 	mux := http.NewServeMux()
-
 	endpoints := map[string]http.HandlerFunc{
 		"/create": createRecord,
 		"/read":   readRecord,
@@ -139,7 +140,7 @@ func newServeMux(cfg *Config) *http.ServeMux {
 	}
 
 	for path, handler := range endpoints {
-		wrappedHandler := http.MaxBytesHandler(handler, cfg.MaxBodyBytes)
+		wrappedHandler := http.MaxBytesHandler(handler, cfg.maxBodyBytes)
 		mux.Handle(
 			path,
 			chainMiddleware(
@@ -150,25 +151,80 @@ func newServeMux(cfg *Config) *http.ServeMux {
 		)
 		log.Printf("Registered endpoint: %s", path)
 	}
-
 	return mux
 }
 
-func newServer(cfg *Config) *http.Server {
+func newServer(cfg *config) *http.Server {
 	return &http.Server{
-		Addr:         cfg.Addr(),
+		Addr:         cfg.addr(),
 		Handler:      newServeMux(cfg),
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
-		IdleTimeout:  cfg.IdleTimeout,
+		ReadTimeout:  cfg.readTimeout,
+		WriteTimeout: cfg.writeTimeout,
+		IdleTimeout:  cfg.idleTimeout,
 	}
 }
 
-// Пример обработчика health check
 func healthCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
-// Остальные обработчики (createRecord, readRecord и т.д.) остаются заглушками
+// Добавленные недостающие обработчики
+func createRecord(w http.ResponseWriter, r *http.Request) {
+	// TODO: реализовать логику создания записи
+	errorResponse(w, http.StatusNotImplemented, "Not implemented")
+}
+
+func readRecord(w http.ResponseWriter, r *http.Request) {
+	// TODO: реализовать логику чтения записи
+	errorResponse(w, http.StatusNotImplemented, "Not implemented")
+}
+
+func updateRecord(w http.ResponseWriter, r *http.Request) {
+	// TODO: реализовать логику обновления записи
+	errorResponse(w, http.StatusNotImplemented, "Not implemented")
+}
+
+func deleteRecord(w http.ResponseWriter, r *http.Request) {
+	// TODO: реализовать логику удаления записи
+	errorResponse(w, http.StatusNotImplemented, "Not implemented")
+}
+
+// Run запускает HTTP сервер с graceful shutdown
+func Run() error {
+	cfg, err := loadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	server := newServer(cfg)
+
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		log.Printf("Starting server on %s", server.Addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	<-done
+	log.Println("Server is shutting down...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("server shutdown failed: %w", err)
+	}
+
+	log.Println("Server stopped gracefully")
+	return nil
+}
