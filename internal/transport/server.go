@@ -140,7 +140,12 @@ func newServeMux(cfg *config) *http.ServeMux {
 	}
 
 	for path, handler := range endpoints {
+		// http.MaxBytesHandler wraps an HTTP handler to enforce a maximum request body size.
+		// If the request body exceeds the specified limit, the handler will return an error
+		// with a 413 status code (Request Entity Too Large), protecting the server from
+		// large payloads that could lead to resource exhaustion or denial-of-service attacks.
 		wrappedHandler := http.MaxBytesHandler(handler, cfg.maxBodyBytes)
+
 		mux.Handle(
 			path,
 			chainMiddleware(
@@ -175,27 +180,6 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
-// Добавленные недостающие обработчики
-func createRecord(w http.ResponseWriter, r *http.Request) {
-	// TODO: реализовать логику создания записи
-	errorResponse(w, http.StatusNotImplemented, "Not implemented")
-}
-
-func readRecord(w http.ResponseWriter, r *http.Request) {
-	// TODO: реализовать логику чтения записи
-	errorResponse(w, http.StatusNotImplemented, "Not implemented")
-}
-
-func updateRecord(w http.ResponseWriter, r *http.Request) {
-	// TODO: реализовать логику обновления записи
-	errorResponse(w, http.StatusNotImplemented, "Not implemented")
-}
-
-func deleteRecord(w http.ResponseWriter, r *http.Request) {
-	// TODO: реализовать логику удаления записи
-	errorResponse(w, http.StatusNotImplemented, "Not implemented")
-}
-
 // Run запускает HTTP сервер с graceful shutdown
 func Run() error {
 	cfg, err := loadConfig()
@@ -227,4 +211,26 @@ func Run() error {
 
 	log.Println("Server stopped gracefully")
 	return nil
+
+}
+
+// Добавленные недостающие обработчики
+func createRecord(w http.ResponseWriter, r *http.Request) {
+	// TODO: реализовать логику создания записи
+	errorResponse(w, http.StatusNotImplemented, "Not implemented")
+}
+
+func readRecord(w http.ResponseWriter, r *http.Request) {
+	// TODO: реализовать логику чтения записи
+	errorResponse(w, http.StatusNotImplemented, "Not implemented")
+}
+
+func updateRecord(w http.ResponseWriter, r *http.Request) {
+	// TODO: реализовать логику обновления записи
+	errorResponse(w, http.StatusNotImplemented, "Not implemented")
+}
+
+func deleteRecord(w http.ResponseWriter, r *http.Request) {
+	// TODO: реализовать логику удаления записи
+	errorResponse(w, http.StatusNotImplemented, "Not implemented")
 }
