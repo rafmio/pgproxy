@@ -2,14 +2,14 @@ package transport
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"runtime/debug"
+	"pgproxy/internal/handlers"
+	"pgproxy/internal/utils"
 	"strconv"
 	"syscall"
 	"time"
@@ -114,29 +114,22 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				stack := debug.Stack()
-				log.Printf("PANIC: %v\n%s", err, stack)
-				errorResponse(w, http.StatusInternalServerError, "Internal Server Error")
+				log.Printf("PANIC: %v\n", err)
+				utils.ErrorResponse(w, http.StatusInternalServerError, "Internal Server Error")
 			}
 		}()
 		next.ServeHTTP(w, r)
 	})
 }
 
-func errorResponse(w http.ResponseWriter, code int, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": msg})
-}
-
 func newServeMux(cfg *config) *http.ServeMux {
 	mux := http.NewServeMux()
 	endpoints := map[string]http.HandlerFunc{
-		"/create": createRecord,
-		"/read":   readRecord,
-		"/update": updateRecord,
-		"/delete": deleteRecord,
-		"/health": healthCheck,
+		"/create": handlers.CreateRecord,
+		"/read":   handlers.ReadRecord,
+		"/update": handlers.UpdateRecord,
+		"/delete": handlers.DeleteRecord,
+		"/health": handlers.HealthCheck,
 	}
 
 	for path, handler := range endpoints {
@@ -169,18 +162,7 @@ func newServer(cfg *config) *http.Server {
 	}
 }
 
-func healthCheck(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		errorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-}
-
-// Run запускает HTTP сервер с graceful shutdown
+// Run() runs HTTP server with graceful shutdown
 func Run() error {
 	cfg, err := loadConfig()
 	if err != nil {
@@ -212,25 +194,4 @@ func Run() error {
 	log.Println("Server stopped gracefully")
 	return nil
 
-}
-
-// Добавленные недостающие обработчики
-func createRecord(w http.ResponseWriter, r *http.Request) {
-	// TODO: реализовать логику создания записи
-	errorResponse(w, http.StatusNotImplemented, "Not implemented")
-}
-
-func readRecord(w http.ResponseWriter, r *http.Request) {
-	// TODO: реализовать логику чтения записи
-	errorResponse(w, http.StatusNotImplemented, "Not implemented")
-}
-
-func updateRecord(w http.ResponseWriter, r *http.Request) {
-	// TODO: реализовать логику обновления записи
-	errorResponse(w, http.StatusNotImplemented, "Not implemented")
-}
-
-func deleteRecord(w http.ResponseWriter, r *http.Request) {
-	// TODO: реализовать логику удаления записи
-	errorResponse(w, http.StatusNotImplemented, "Not implemented")
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"pgproxy/internal/utils"
 )
 
 // The healthCheck function is designed to check the server's availability and readiness via an HTTP endpoint.
@@ -15,9 +16,9 @@ import (
 // Example usage:
 // In Kubernetes, periodic checks are made against the `/health` endpoint. If the server responds with status code 200 OK,
 // it is considered healthy and ready to serve traffic.
-func healthCheck(w http.ResponseWriter, r *http.Request) {
+func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		errorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
+		utils.ErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
