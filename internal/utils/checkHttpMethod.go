@@ -3,7 +3,7 @@ package utils
 import (
 	"fmt"
 	"net/http"
-	"pgproxy/internal/utils"
+	// "pgproxy/internal/utils"
 )
 
 // Path constants for the server endpoints.
@@ -40,10 +40,10 @@ func CheckHttpMethod(w http.ResponseWriter, r *http.Request) bool {
 	// 		r.Method, r.URL.Path, expectedMethod)
 	// }
 	if method, ok := matchMethods[r.URL.Path]; !ok {
-		utils.ErrorResponse(w, http.StatusMethodNotAllowed, fmt.Sprintf("Path %s is not allowed", r.URL.Path))
+		ErrorResponse(w, http.StatusMethodNotAllowed, fmt.Sprintf("Path %s is not allowed", r.URL.Path))
 		return false
 	} else if method != r.Method {
-		utils.ErrorResponse(w, http.StatusMethodNotAllowed, fmt.Sprintf("Method %s not allowed for path %s, should be %s", r.Method, r.URL.Path, method))
+		ErrorResponse(w, http.StatusMethodNotAllowed, fmt.Sprintf("Method %s not allowed for path %s, should be %s", r.Method, r.URL.Path, method))
 		return false
 	}
 
