@@ -3,8 +3,8 @@ package dbops
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
+	"time"
 
 	// import the PostgreSQL driver for database/sql
 	_ "github.com/lib/pq" // $ go get .
@@ -18,65 +18,73 @@ type DBConfig struct {
 	User       string
 	Password   string
 	SslMode    string
-	Dsn        string
-	DB         *sql.DB
 }
 
-func NewDBConfig() *DBConfig {
-	dbCfg := new(DBConfig)
-	dbCfg.DriverName = "postgres"
-	dbCfg.Host = os.Getenv("DB_HOST")
-	dbCfg.Port = os.Getenv("DB_PORT")
-	dbCfg.User = os.Getenv("DB_USER")
-	dbCfg.Password = os.Getenv("DB_PASSWORD")
-	dbCfg.DBName = os.Getenv("DB_NAME")
-	dbCfg.SslMode = os.Getenv("DB_SSL_MODE")
-
-	log.Println("new DB config has been created")
-
-	return dbCfg
+// In Go, it is customary to separate configuration and state.
+// DB in this case is a state, so I've separated it into a separate structure.
+type DBConnection struct {
+	db *sql.DB
 }
 
-func (dbc *DBConfig) SetDSN() {
-	formatString := "host=%s port=%s user=%s dbname=%s password=%s sslmode=%s"
+func NewDBConfig() (*DBConfig, error) {
+	cfg := &DBConfig{
+		DriverName: "postgres",
+		Host:       os.Getenv("DB_HOST"),
+		Port:       os.Getenv("DB_PORT"),
+		User:       os.Getenv("DB_USER"),
+		Password:   os.Getenv("DB_PASSWORD"),
+		DBName:     os.Getenv("DB_NAME"),
+		SslMode:    os.Getenv("DB_SSL_MODE"),
+	}
 
-	dbc.Dsn = fmt.Sprintf(formatString,
-		dbc.Host,
-		dbc.Port,
-		dbc.User,
-		dbc.DBName,
-		dbc.Password,
-		dbc.SslMode,
+	if cfg.Host == "" || cfg.Port == "" || cfg.DBName == "" {
+		return nil, fmt.Errorf("missing required database configuration")
+	}
+
+	return cfg, nil
+}
+
+func (cfg *DBConfig) DSN() string {
+	return fmt.Sprintf(
+		"host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
+		cfg.Host,
+		cfg.Port,
+		cfg.User,
+		cfg.DBName,
+		cfg.Password,
+		cfg.SslMode,
 	)
-	log.Println("DSN has been set")
 }
 
-func (dbc *DBConfig) EstablishDbConnection() error {
-	var err error
-	dbc.DB, err = sql.Open(dbc.DriverName, dbc.Dsn)
+func EstablishConnection(cfg *DBConfig) (*sql.DB, error) {
+	db, err := sql.Open(cfg.DriverName, cfg.DSN())
 	if err != nil {
-		log.Println("Open database:", err)
-		return err
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	err = dbc.DB.Ping()
-	if err != nil {
-		log.Println("Ping database:", err)
+	if err := db.Ping(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
-	log.Println("connection to DB has been established")
 
-	return nil
+	// Настройка пула соединений
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	return db, nil
 }
 
-func ConnectToDb() (*sql.DB, error) {
-	dbCfg := NewDBConfig()
-	dbCfg.SetDSN()
-
-	log.Println("Establishing connection to DB...")
-	err := dbCfg.EstablishDbConnection()
+func Connect() (*sql.DB, error) {
+	cfg, err := NewDBConfig()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	return dbCfg.DB, nil
+	db, err := EstablishConnection(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("connection error: %w", err)
+	}
+
+	return db, nil
 }
