@@ -6,19 +6,19 @@ import (
 )
 
 // InsertToDb() inserts single entry (row), not multiple rows
-func InsertToDb(db *sql.DB, query string, params []any) error {
+func InsertToDb(db *sql.DB, query string, params []any) (sql.Result, error) {
 	stmt, err := db.Prepare(query)
 	if err != nil {
 		log.Println("error prepare query:", err)
-		return err
+		return nil, err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(params...)
+	result, err := stmt.Exec(params...)
 	if err != nil {
 		log.Println("error executing query:", err)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return result, nil
 }
