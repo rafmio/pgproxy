@@ -25,20 +25,6 @@ var matchMethods = map[string]string{
 }
 
 func CheckHttpMethod(w http.ResponseWriter, r *http.Request) bool {
-	// sendError := func(statusCode int, format string, args ...interface{}) bool {
-	// 	http.Error(w, fmt.Sprintf(format, args...), statusCode)
-	// 	return false
-	// }
-
-	// expectedMethod, ok := matchMethods[r.URL.Path]
-	// if !ok {
-	// 	return sendError(http.StatusMethodNotAllowed, "Path %s is not allowed", r.URL.Path)
-	// }
-
-	// if expectedMethod != r.Method {
-	// 	return sendError(http.StatusMethodNotAllowed, "Method %s not allowed for path %s, should be %s",
-	// 		r.Method, r.URL.Path, expectedMethod)
-	// }
 	if method, ok := matchMethods[r.URL.Path]; !ok {
 		ErrorResponse(w, http.StatusMethodNotAllowed, fmt.Sprintf("Path %s is not allowed", r.URL.Path))
 		return false
