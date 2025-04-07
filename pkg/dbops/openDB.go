@@ -10,7 +10,7 @@ import (
 	_ "github.com/lib/pq" // $ go get .
 )
 
-type DBConfig struct {
+type dbConfig struct {
 	DriverName string
 	Host       string
 	Port       string
@@ -22,12 +22,12 @@ type DBConfig struct {
 
 // In Go, it is customary to separate configuration and state.
 // DB in this case is a state, so I've separated it into a separate structure.
-type DBConnection struct {
+type dbConnection struct {
 	db *sql.DB
 }
 
-func NewDBConfig() (*DBConfig, error) {
-	cfg := &DBConfig{
+func newDBConfig() (*dbConfig, error) {
+	cfg := &dbConfig{
 		DriverName: "postgres",
 		Host:       os.Getenv("DB_HOST"),
 		Port:       os.Getenv("DB_PORT"),
@@ -44,7 +44,7 @@ func NewDBConfig() (*DBConfig, error) {
 	return cfg, nil
 }
 
-func (cfg *DBConfig) DSN() string {
+func (cfg *dbConfig) dsn() string {
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
 		cfg.Host,
@@ -56,8 +56,8 @@ func (cfg *DBConfig) DSN() string {
 	)
 }
 
-func EstablishConnection(cfg *DBConfig) (*sql.DB, error) {
-	db, err := sql.Open(cfg.DriverName, cfg.DSN())
+func establishConnection(cfg *dbConfig) (*sql.DB, error) {
+	db, err := sql.Open(cfg.DriverName, cfg.dsn())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -76,12 +76,12 @@ func EstablishConnection(cfg *DBConfig) (*sql.DB, error) {
 }
 
 func Connect() (*sql.DB, error) {
-	cfg, err := NewDBConfig()
+	cfg, err := newDBConfig()
 	if err != nil {
 		return nil, fmt.Errorf("config error: %w", err)
 	}
 
-	db, err := EstablishConnection(cfg)
+	db, err := establishConnection(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("connection error: %w", err)
 	}
